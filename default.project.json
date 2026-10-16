@@ -1,0 +1,10 @@
+{
+  "name": "BAKI Underground",
+  "tree": {
+    "$className": "DataModel",
+    "ReplicatedStorage": { "Baki": { "$path": "src/shared" } },
+    "ServerScriptService": { "BakiServer": { "$path": "src/server" } },
+    "StarterPlayer": { "StarterPlayerScripts": { "BakiClient": { "$path": "src/client/Controller.client.luau" } } },
+    "Workspace": { "$properties": { "StreamingEnabled": false } }
+  }
+}

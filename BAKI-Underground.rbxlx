@@ -1,0 +1,677 @@
+<?xml version='1.0' encoding='utf-8'?>
+<roblox version="4">
+  <Item class="Workspace" referent="RBX1">
+    <Properties>
+      <string name="Name">Workspace</string>
+      <bool name="StreamingEnabled">false</bool>
+    </Properties>
+  </Item>
+  <Item class="Lighting" referent="RBX2">
+    <Properties>
+      <string name="Name">Lighting</string>
+    </Properties>
+  </Item>
+  <Item class="ReplicatedStorage" referent="RBX3">
+    <Properties>
+      <string name="Name">ReplicatedStorage</string>
+    </Properties>
+    <Item class="Folder" referent="RBX4">
+      <Properties>
+        <string name="Name">Baki</string>
+      </Properties>
+      <Item class="ModuleScript" referent="RBX5">
+        <Properties>
+          <string name="Name">Config</string>
+          <ProtectedString name="Source">return {
+	Title = "BAKI · UNDERGROUND",
+	Subtitle = "THE STRONGEST ARE MADE HERE",
+	MaxStamina = 100,
+	StaminaRegen = 18,
+	AttackCost = 10,
+	DashCost = 25,
+	AttackCooldown = 0.34,
+	AttackRange = 8,
+	ComboWindow = 1.1,
+	Damage = { 8, 9, 11, 18 },
+	WalkSpeed = 18,
+	BlockSpeed = 8,
+	DashSpeed = 65,
+	DashDuration = 0.16,
+	Spawn = Vector3.new(0, 5, 86),
+	Arena = Vector3.new(0, -23, -100),
+	Enemies = {
+		{ Name = "STREET ROOKIE", Position = Vector3.new(-42, 4, 25), Health = 85, Damage = 7, Reward = 25, Color = Color3.fromRGB(119, 141, 154) },
+		{ Name = "DOJO VETERAN", Position = Vector3.new(75, 4, -8), Health = 150, Damage = 11, Reward = 55, Color = Color3.fromRGB(186, 157, 105) },
+		{ Name = "ARENA CHAMPION", Position = Vector3.new(0, -22, -100), Health = 350, Damage = 17, Reward = 150, Color = Color3.fromRGB(196, 62, 54) },
+	},
+}
+</ProtectedString>
+        </Properties>
+      </Item>
+    </Item>
+  </Item>
+  <Item class="ServerScriptService" referent="RBX6">
+    <Properties>
+      <string name="Name">ServerScriptService</string>
+    </Properties>
+    <Item class="Folder" referent="RBX7">
+      <Properties>
+        <string name="Name">BakiServer</string>
+      </Properties>
+      <Item class="ModuleScript" referent="RBX8">
+        <Properties>
+          <string name="Name">World</string>
+          <ProtectedString name="Source">local Lighting = game:GetService("Lighting")
+local World = {}
+local root
+local C = {
+	asphalt = Color3.fromRGB(29, 32, 39), concrete = Color3.fromRGB(67, 68, 73),
+	black = Color3.fromRGB(15, 17, 23), red = Color3.fromRGB(235, 54, 62),
+	gold = Color3.fromRGB(240, 186, 95), blue = Color3.fromRGB(76, 196, 235),
+}
+local function part(name, size, pos, color, material, parent)
+	local p = Instance.new("Part")
+	p.Name, p.Size, p.Position = name, size, pos
+	p.Anchored = true
+	p.Color, p.Material = color or C.concrete, material or Enum.Material.Concrete
+	p.TopSurface, p.BottomSurface = Enum.SurfaceType.Smooth, Enum.SurfaceType.Smooth
+	p.Parent = parent or root
+	return p
+end
+local function sign(text, size, pos, color)
+	local p = part("Sign", size, pos, C.black, Enum.Material.Metal)
+	local gui = Instance.new("SurfaceGui")
+	gui.Face, gui.PixelsPerStud = Enum.NormalId.Front, 32
+	gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+	gui.Parent = p
+	local t = Instance.new("TextLabel")
+	t.Size, t.BackgroundTransparency = UDim2.fromScale(1, 1), 1
+	t.Font, t.TextScaled, t.Text = Enum.Font.GothamBlack, true, text
+	t.TextColor3 = color or C.gold
+	t.Parent = gui
+	local back = gui:Clone()
+	back.Face, back.Parent = Enum.NormalId.Back, p
+	return p
+end
+local function light(pos, color, brightness, reach)
+	local p = part("Light", Vector3.new(0.6, 0.6, 0.6), pos, color, Enum.Material.Neon)
+	p.CanCollide = false
+	local l = Instance.new("PointLight")
+	l.Color, l.Brightness, l.Range, l.Shadows = color, brightness or 1.5, reach or 28, true
+	l.Parent = p
+end
+local function cylinder(name, radius, height, pos, color, material)
+	local p = part(name, Vector3.new(height, radius * 2, radius * 2), pos, color, material)
+	p.Shape, p.Orientation = Enum.PartType.Cylinder, Vector3.new(0, 0, 90)
+	return p
+end
+local function portal(name, pos, target, color)
+	local p = part(name, Vector3.new(9, 0.25, 9), pos, color, Enum.Material.Neon)
+	local prompt = Instance.new("ProximityPrompt")
+	prompt.ActionText, prompt.ObjectText, prompt.HoldDuration = "Travel", name, 0.25
+	prompt.MaxActivationDistance = 12
+	prompt.Parent = p
+	prompt.Triggered:Connect(function(player)
+		local char = player.Character
+		if char and char:FindFirstChild("HumanoidRootPart") then
+			char:PivotTo(CFrame.new(target))
+		end
+	end)
+	sign(name, Vector3.new(14, 3, 0.5), pos + Vector3.new(0, 5, -5), color)
+end
+function World.Build()
+	local old = workspace:FindFirstChild("BakiWorld")
+	if old then old:Destroy() end
+	root = Instance.new("Folder")
+	root.Name, root.Parent = "BakiWorld", workspace
+	workspace.FallenPartsDestroyHeight = -180
+	Lighting.ClockTime, Lighting.Brightness = 20.3, 2
+	Lighting.Ambient = Color3.fromRGB(55, 60, 85)
+	Lighting.OutdoorAmbient = Color3.fromRGB(72, 77, 100)
+	local atmosphere = Lighting:FindFirstChildOfClass("Atmosphere") or Instance.new("Atmosphere", Lighting)
+	atmosphere.Density, atmosphere.Offset = 0.28, 0.15
+	atmosphere.Color, atmosphere.Decay = Color3.fromRGB(155, 166, 198), Color3.fromRGB(45, 45, 68)
+	local bloom = Lighting:FindFirstChild("BakiBloom") or Instance.new("BloomEffect", Lighting)
+	bloom.Name, bloom.Intensity, bloom.Size, bloom.Threshold = "BakiBloom", 0.45, 24, 1.4
+	part("City foundation", Vector3.new(290, 4, 260), Vector3.new(0, -2, 0), C.asphalt)
+	-- Raised perimeter contains the playable city without invisible walls.
+	for _, x in {-145, 145} do part("Perimeter", Vector3.new(3, 9, 260), Vector3.new(x, 3, 0), C.black) end
+	for _, z in {-130, 130} do part("Perimeter", Vector3.new(290, 9, 3), Vector3.new(0, 3, z), C.black) end
+	part("Main road", Vector3.new(26, 0.12, 240), Vector3.new(0, 0.08, 0), C.black, Enum.Material.Asphalt)
+	for z = -112, 112, 14 do part("Lane marking", Vector3.new(0.35, 0.08, 6), Vector3.new(0, 0.2, z), C.gold) end
+	for _, x in {-18, 18} do part("Sidewalk", Vector3.new(8, 0.5, 240), Vector3.new(x, 0.2, 0)) end
+	for z = -105, 105, 35 do
+		for _, x in {-20, 20} do
+			part("Lamp post", Vector3.new(0.5, 16, 0.5), Vector3.new(x, 8, z), C.black, Enum.Material.Metal)
+			part("Lamp arm", Vector3.new(5, 0.4, 0.4), Vector3.new(x + (x &lt; 0 and 2 or -2), 16, z), C.black, Enum.Material.Metal)
+			light(Vector3.new(x, 15.5, z), C.gold, 1.2, 32)
+		end
+	end
+	-- Deterministic skyline with lit windows, roof trims and shop awnings.
+	local rng = Random.new(188528)
+	for _, x in {-112, -75, 75, 112} do
+		for _, z in {-100, -65, 65, 100} do
+			local h = rng:NextInteger(22, 62)
+			local col = Color3.fromRGB(rng:NextInteger(36, 55), rng:NextInteger(39, 57), rng:NextInteger(48, 67))
+			part("City building", Vector3.new(28, h, 25), Vector3.new(x, h / 2, z), col)
+			part("Roof cap", Vector3.new(30, 1, 27), Vector3.new(x, h, z), C.black, Enum.Material.Metal)
+			for y = 7, h - 3, 7 do
+				for dx = -8, 8, 8 do
+					part("Window", Vector3.new(3.4, 3, 0.15), Vector3.new(x + dx, y, z + 12.6), rng:NextNumber() &gt; 0.3 and C.gold or C.black, Enum.Material.Neon)
+				end
+			end
+			part("Shop canopy", Vector3.new(28, 0.7, 5), Vector3.new(x, 5, z + 14), C.red, Enum.Material.Metal)
+		end
+	end
+	sign("UNDERGROUND\nCOMBAT DISTRICT", Vector3.new(26, 7, 1), Vector3.new(0, 19, 111), C.red)
+	for _, x in {-15, 15} do part("Entrance gate", Vector3.new(1, 22, 1), Vector3.new(x, 11, 111), C.black, Enum.Material.Metal) end
+	-- Street fighting court.
+	part("Street court", Vector3.new(48, 0.25, 48), Vector3.new(-48, 0.2, 18), Color3.fromRGB(60, 65, 75))
+	for _, x in {-72, -24} do part("Court edge", Vector3.new(0.3, 0.1, 48), Vector3.new(x, 0.4, 18), C.blue, Enum.Material.Neon) end
+	sign("01 / STREET TRIALS", Vector3.new(26, 3, 0.5), Vector3.new(-48, 6, -8), C.blue)
+	-- Open-front dojo, visible from the street.
+	part("Dojo platform", Vector3.new(54, 1, 50), Vector3.new(79, 0.5, -8), Color3.fromRGB(107, 74, 51), Enum.Material.WoodPlanks)
+	part("Tatami", Vector3.new(40, 0.15, 36), Vector3.new(79, 1.1, -8), Color3.fromRGB(135, 143, 102), Enum.Material.Fabric)
+	part("Dojo rear wall", Vector3.new(54, 17, 1), Vector3.new(79, 9, -33), Color3.fromRGB(123, 104, 85), Enum.Material.WoodPlanks)
+	for _, x in {52, 106} do part("Dojo side", Vector3.new(1, 17, 50), Vector3.new(x, 9, -8), C.black, Enum.Material.Wood) end
+	part("Dojo roof", Vector3.new(60, 2, 56), Vector3.new(79, 18, -8), C.black, Enum.Material.Slate)
+	for _, x in {55, 103} do part("Dojo pillar", Vector3.new(2, 18, 2), Vector3.new(x, 9, 17), C.red, Enum.Material.Wood) end
+	sign("02 / IRON WILL DOJO", Vector3.new(35, 4, 0.5), Vector3.new(79, 14, 18), C.gold)
+	light(Vector3.new(79, 15, -8), C.gold, 2, 40)
+	-- Training park: bags, benches, planted cherry trees.
+	sign("TRAINING / EARN YOUR STRENGTH", Vector3.new(36, 3, 0.5), Vector3.new(-83, 5, -39), C.gold)
+	for x = -108, -60, 16 do
+		part("Bag frame", Vector3.new(0.8, 12, 0.8), Vector3.new(x, 6, -30), C.black, Enum.Material.Metal)
+		part("Bag arm", Vector3.new(0.8, 0.8, 8), Vector3.new(x, 12, -27), C.black, Enum.Material.Metal)
+		local bag = cylinder("Punch bag", 1.5, 6, Vector3.new(x, 7.5, -23), C.red, Enum.Material.Fabric)
+		-- Cylinder is horizontal by default; rotate upright for the bag.
+		bag.Orientation = Vector3.new(0, 0, 90)
+		bag:SetAttribute("TrainingBag", true)
+		local train = Instance.new("ProximityPrompt")
+		train.ActionText, train.ObjectText, train.HoldDuration = "Train / +1 Strength", "IRON BODY TRAINING", 0.8
+		train.MaxActivationDistance, train.Parent = 10, bag
+	end
+	for _, x in {-117, -49} do
+		part("Park bench seat", Vector3.new(8, 0.6, 3), Vector3.new(x, 2, -9), Color3.fromRGB(110, 77, 50), Enum.Material.WoodPlanks)
+		part("Park bench back", Vector3.new(8, 3, 0.5), Vector3.new(x, 3.5, -10.5), Color3.fromRGB(110, 77, 50), Enum.Material.WoodPlanks)
+		for _, dx in {-3, 3} do part("Bench leg", Vector3.new(0.5, 2, 2), Vector3.new(x + dx, 1, -9), C.black, Enum.Material.Metal) end
+	end
+	for _, pos in {Vector3.new(-120, 0, 44), Vector3.new(120, 0, 38), Vector3.new(-36, 0, 100)} do
+		part("Tree planter", Vector3.new(10, 2, 10), pos + Vector3.new(0, 1, 0))
+		part("Tree trunk", Vector3.new(2, 13, 2), pos + Vector3.new(0, 7, 0), Color3.fromRGB(81, 57, 47), Enum.Material.Wood)
+		local crown = part("Cherry canopy", Vector3.new(17, 10, 16), pos + Vector3.new(0, 16, 0), Color3.fromRGB(168, 96, 123), Enum.Material.Grass)
+		crown.Shape, crown.CanCollide = Enum.PartType.Ball, false
+	end
+	-- Underground bowl: a ring, stepped galleries and structural ribs.
+	cylinder("Arena foundation", 60, 4, Vector3.new(0, -28, -100), C.black)
+	cylinder("Sand ring", 29, 0.5, Vector3.new(0, -25.7, -100), Color3.fromRGB(158, 134, 99), Enum.Material.Sand)
+	for i = 0, 47 do
+		local a = i * math.pi * 2 / 48
+		local p = part("Arena retaining wall", Vector3.new(8, 21, 2), Vector3.new(math.sin(a) * 59, -17, -100 + math.cos(a) * 59), C.concrete)
+		p.CFrame = CFrame.lookAt(p.Position, Vector3.new(0, -17, -100))
+		for tier = 1, 3 do
+			local radius = 34 + tier * 6
+			local seat = part("Gallery tier", Vector3.new(7, 1.5 + tier * 2, 5), Vector3.new(math.sin(a) * radius, -25 + tier, -100 + math.cos(a) * radius), C.black)
+			seat.CFrame = CFrame.lookAt(seat.Position, Vector3.new(0, seat.Position.Y, -100))
+		end
+		if i % 6 == 0 then light(Vector3.new(math.sin(a) * 32, -10, -100 + math.cos(a) * 32), C.gold, 2, 38) end
+	end
+	sign("03 / THE UNDERGROUND", Vector3.new(34, 5, 0.5), Vector3.new(0, -12, -140), C.red)
+	portal("ENTER THE ARENA", Vector3.new(32, 0.7, -62), Vector3.new(0, -22, -78), C.red)
+	portal("RETURN TO CITY", Vector3.new(0, -25.2, -63), Vector3.new(32, 4, -51), C.blue)
+	local spawn = Instance.new("SpawnLocation")
+	spawn.Name, spawn.Size, spawn.Position = "District Spawn", Vector3.new(12, 0.4, 12), Vector3.new(0, 0.4, 86)
+	spawn.Anchored, spawn.Neutral, spawn.Duration = true, true, 3
+	spawn.Color, spawn.Material, spawn.Parent = C.gold, Enum.Material.Neon, root
+	return root
+end
+return World
+</ProtectedString>
+        </Properties>
+      </Item>
+      <Item class="Script" referent="RBX9">
+        <Properties>
+          <string name="Name">Main</string>
+          <ProtectedString name="Source">local Players = game:GetService("Players")
+local RS = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+local Debris = game:GetService("Debris")
+local Config = require(RS:WaitForChild("Baki"):WaitForChild("Config"))
+require(script.Parent.World).Build()
+
+local remote = Instance.new("RemoteEvent")
+remote.Name, remote.Parent = "Combat", RS.Baki
+local states, enemies = {}, {}
+local enemyFolder = Instance.new("Folder")
+enemyFolder.Name, enemyFolder.Parent = "Opponents", workspace
+local function live(model)
+	if not model then return end
+	local hum, hrp = model:FindFirstChildOfClass("Humanoid"), model:FindFirstChild("HumanoidRootPart")
+	if hum and hrp and hum.Health &gt; 0 then return hum, hrp end
+end
+local function message(player, text)
+	remote:FireClient(player, "Notice", text)
+end
+local function impact(position, finisher)
+	remote:FireAllClients("Impact", position, finisher)
+end
+local function reward(player, amount)
+	local stats = player:FindFirstChild("leaderstats")
+	if stats then
+		stats.Strength.Value += amount
+		stats.KOs.Value += 1
+		local s = states[player]
+		if s and not s.questDone and stats.KOs.Value &gt;= 3 then
+			s.questDone = true
+			stats.Strength.Value += 100
+			message(player, "FIRST BLOOD COMPLETE / +100 STRENGTH")
+		else message(player, "+" .. amount .. " STRENGTH / DEFEAT 3 OPPONENTS FOR A BONUS") end
+	end
+end
+local function makeEnemy(def)
+	-- A local, asset-free R6 rig avoids HTTP/avatar asset dependencies.
+	local model = Instance.new("Model")
+	model.Name = def.Name
+	local function body(name, size, offset, color, transparent)
+		local p = Instance.new("Part")
+		p.Name, p.Size, p.CFrame = name, size, CFrame.new(def.Position + offset)
+		p.Color, p.CanCollide = color, name == "Torso"
+		p.Transparency = transparent and 1 or 0
+		p.TopSurface, p.BottomSurface = Enum.SurfaceType.Smooth, Enum.SurfaceType.Smooth
+		p.Parent = model
+		return p
+	end
+	local skin = Color3.fromRGB(189, 142, 111)
+	local hrp = body("HumanoidRootPart", Vector3.new(2, 2, 1), Vector3.zero, skin, true)
+	local torso = body("Torso", Vector3.new(2, 2, 1), Vector3.zero, def.Color)
+	local head = body("Head", Vector3.new(2, 1, 1), Vector3.new(0, 1.5, 0), skin)
+	local left = body("Left Arm", Vector3.new(1, 2, 1), Vector3.new(-1.5, 0, 0), skin)
+	local right = body("Right Arm", Vector3.new(1, 2, 1), Vector3.new(1.5, 0, 0), skin)
+	local ll = body("Left Leg", Vector3.new(1, 2, 1), Vector3.new(-0.5, -2, 0), def.Color)
+	local rl = body("Right Leg", Vector3.new(1, 2, 1), Vector3.new(0.5, -2, 0), def.Color)
+	local function joint(name, a, b, c0, c1)
+		local m = Instance.new("Motor6D")
+		m.Name, m.Part0, m.Part1, m.C0, m.C1, m.Parent = name, a, b, c0, c1, a
+	end
+	joint("RootJoint", hrp, torso, CFrame.new(), CFrame.new())
+	joint("Neck", torso, head, CFrame.new(0, 1, 0), CFrame.new(0, -0.5, 0))
+	joint("Left Shoulder", torso, left, CFrame.new(-1, 0.5, 0), CFrame.new(0.5, 0.5, 0))
+	joint("Right Shoulder", torso, right, CFrame.new(1, 0.5, 0), CFrame.new(-0.5, 0.5, 0))
+	joint("Left Hip", torso, ll, CFrame.new(-0.5, -1, 0), CFrame.new(0, 1, 0))
+	joint("Right Hip", torso, rl, CFrame.new(0.5, -1, 0), CFrame.new(0, 1, 0))
+	local hum = Instance.new("Humanoid")
+	hum.MaxHealth, hum.Health, hum.WalkSpeed, hum.HipHeight = def.Health, def.Health, 12, 0
+	hum.DisplayName, hum.Parent = def.Name, model
+	model.PrimaryPart, model.Parent = hrp, enemyFolder
+	hrp:SetNetworkOwner(nil)
+	local state = { model = model, def = def, home = def.Position, lastAttack = 0 }
+	enemies[model] = state
+	hum.Died:Connect(function()
+		enemies[model] = nil
+		if state.lastHitter and states[state.lastHitter] and os.clock() - (state.hitAt or 0) &lt; 15 then reward(state.lastHitter, def.Reward) end
+		Debris:AddItem(model, 4)
+		task.delay(10, function() makeEnemy(def) end)
+	end)
+	return model
+end
+for _, def in Config.Enemies do makeEnemy(def) end
+
+local function addPlayer(player)
+	states[player] = { stamina = 100, lastAttack = 0, lastDash = 0, combo = 0, block = false, lastRemote = 0 }
+	local stats = Instance.new("Folder")
+	stats.Name, stats.Parent = "leaderstats", player
+	for _, name in {"Strength", "KOs"} do local v = Instance.new("IntValue"); v.Name, v.Parent = name, stats end
+	local function spawnCharacter(char)
+		local hum = char:WaitForChild("Humanoid")
+		local s = states[player]
+		if not s then return end
+		s.stamina, s.block, s.combo = Config.MaxStamina, false, 0
+		hum.WalkSpeed = Config.WalkSpeed
+		player:SetAttribute("Stamina", s.stamina)
+		player:SetAttribute("Blocking", false)
+		hum.Died:Connect(function() s.block = false; player:SetAttribute("Blocking", false) end)
+	end
+	player.CharacterAdded:Connect(spawnCharacter)
+	if player.Character then task.spawn(spawnCharacter, player.Character) end
+end
+Players.PlayerAdded:Connect(addPlayer)
+for _, p in Players:GetPlayers() do addPlayer(p) end
+Players.PlayerRemoving:Connect(function(player) states[player] = nil end)
+
+for _, bag in workspace.BakiWorld:GetDescendants() do
+	if bag:GetAttribute("TrainingBag") then
+		bag.ProximityPrompt.Triggered:Connect(function(player)
+			local s = states[player]
+			local hum, hrp = live(player.Character)
+			local now = os.clock()
+			if not s or not hum or (hrp.Position - bag.Position).Magnitude &gt; 12 then return end
+			if now - (s.lastTrain or 0) &lt; 1.3 or s.stamina &lt; 10 then return end
+			s.lastTrain, s.stamina = now, s.stamina - 10
+			player.leaderstats.Strength.Value += 1
+			remote:FireAllClients("Swing", player.Character, 1)
+			impact(bag.Position, false)
+			message(player, "IRON BODY TRAINING / +1 STRENGTH")
+		end)
+	end
+end
+
+remote.OnServerEvent:Connect(function(player, action, flag)
+	local s = states[player]
+	local hum, hrp = live(player.Character)
+	if not s or not hum then return end
+	local now = os.clock()
+	-- The client sends intent only. Timing, target, damage and rewards live here.
+	-- Always accept guard release, including taps shorter than the rate limit.
+	if action == "Block" and flag == false then
+		s.block = false
+		player:SetAttribute("Blocking", false)
+		hum.WalkSpeed = Config.WalkSpeed
+		return
+	end
+	if action ~= "Attack" and action ~= "Dash" and action ~= "Block" then return end
+	if now - s.lastRemote &lt; 0.045 then return end
+	s.lastRemote = now
+	if action == "Block" and typeof(flag) == "boolean" then
+		s.block = flag and s.stamina &gt; 5
+		player:SetAttribute("Blocking", s.block)
+		hum.WalkSpeed = s.block and Config.BlockSpeed or Config.WalkSpeed
+	elseif action == "Dash" then
+		if now - s.lastDash &lt; 1.2 or s.stamina &lt; Config.DashCost or s.block then return end
+		s.lastDash, s.stamina = now, s.stamina - Config.DashCost
+		local dir = hum.MoveDirection
+		if dir.Magnitude &lt; 0.1 then dir = hrp.CFrame.LookVector end
+		local attachment = Instance.new("Attachment", hrp)
+		local velocity = Instance.new("LinearVelocity")
+		velocity.Attachment0, velocity.MaxForce = attachment, 45000
+		velocity.VectorVelocity, velocity.Parent = dir * Config.DashSpeed, hrp
+		Debris:AddItem(velocity, Config.DashDuration)
+		Debris:AddItem(attachment, Config.DashDuration)
+		remote:FireClient(player, "Dash")
+	elseif action == "Attack" then
+		if now - s.lastAttack &lt; Config.AttackCooldown or s.stamina &lt; Config.AttackCost or s.block then return end
+		s.combo = now - s.lastAttack &lt; Config.ComboWindow and s.combo % 4 + 1 or 1
+		s.lastAttack, s.stamina = now, s.stamina - Config.AttackCost
+		remote:FireAllClients("Swing", player.Character, s.combo)
+		local params = OverlapParams.new()
+		params.FilterType, params.FilterDescendantsInstances = Enum.RaycastFilterType.Exclude, {player.Character}
+		local hit = {}
+		for _, p in workspace:GetPartBoundsInBox(hrp.CFrame * CFrame.new(0, 0, -4), Vector3.new(6, 6, 7), params) do
+			local model = p:FindFirstAncestorOfClass("Model")
+			local targetHum, targetRoot = live(model)
+			if not model or hit[model] or not targetHum or (targetRoot.Position - hrp.Position).Magnitude &gt; Config.AttackRange then continue end
+			if not enemies[model] and not Players:GetPlayerFromCharacter(model) then continue end
+			local ray = RaycastParams.new()
+			ray.FilterType, ray.FilterDescendantsInstances = Enum.RaycastFilterType.Exclude, {player.Character, model}
+			if workspace:Raycast(hrp.Position, targetRoot.Position - hrp.Position, ray) then continue end
+			hit[model] = true
+			local damage = Config.Damage[s.combo]
+			local targetPlayer = Players:GetPlayerFromCharacter(model)
+			local ts = targetPlayer and states[targetPlayer]
+			if ts and ts.block and targetRoot.CFrame.LookVector:Dot((hrp.Position - targetRoot.Position).Unit) &gt; 0 then
+				damage *= 0.2
+				ts.stamina = math.max(0, ts.stamina - 12)
+			end
+			if enemies[model] then enemies[model].lastHitter, enemies[model].hitAt = player, now end
+			targetHum:TakeDamage(damage)
+			impact(targetRoot.Position, s.combo == 4)
+			if s.combo == 4 then targetRoot:ApplyImpulse((hrp.CFrame.LookVector * 28 + Vector3.new(0, 9, 0)) * targetRoot.AssemblyMass) end
+		end
+	end
+	player:SetAttribute("Stamina", s.stamina)
+end)
+
+local tickTime = 0
+RunService.Heartbeat:Connect(function(dt)
+	tickTime += dt
+	if tickTime &lt; 0.15 then return end
+	local step = math.min(tickTime, 0.5)
+	tickTime = 0
+	local now = os.clock()
+	for player, s in states do
+		local hum = live(player.Character)
+		if hum then
+			s.stamina = math.clamp(s.stamina + (s.block and -7 or Config.StaminaRegen) * step, 0, Config.MaxStamina)
+			if s.stamina &lt;= 0 and s.block then s.block = false; hum.WalkSpeed = Config.WalkSpeed; player:SetAttribute("Blocking", false) end
+			player:SetAttribute("Stamina", math.floor(s.stamina))
+		end
+	end
+	for model, enemy in enemies do
+		local hum, hrp = live(model)
+		if not hum then continue end
+		local nearest, distance = nil, 26
+		for player in states do
+			local ph, pr = live(player.Character)
+			if ph and (pr.Position - enemy.home).Magnitude &lt; 38 then
+				local d = (pr.Position - hrp.Position).Magnitude
+				if d &lt; distance then nearest, distance = player, d end
+			end
+		end
+		if nearest then
+			local ph, pr = live(nearest.Character)
+			hum:MoveTo(pr.Position)
+			if distance &lt; 5.5 and now - enemy.lastAttack &gt; 1.25 then
+				enemy.lastAttack = now
+				remote:FireAllClients("Swing", model, 1)
+				-- Windup gives players time to block or leave the attack range.
+				task.delay(0.25, function()
+					local eh, er = live(model)
+					local th, tr = live(nearest.Character)
+					if not eh or not th or (tr.Position - er.Position).Magnitude &gt; 6 then return end
+					local ray = RaycastParams.new()
+					ray.FilterType, ray.FilterDescendantsInstances = Enum.RaycastFilterType.Exclude, {model, nearest.Character}
+					if workspace:Raycast(er.Position, tr.Position - er.Position, ray) then return end
+					local ps = states[nearest]
+					local block = ps and ps.block and tr.CFrame.LookVector:Dot((er.Position - tr.Position).Unit) &gt; 0
+					th:TakeDamage(enemy.def.Damage * (block and 0.2 or 1))
+					if block then ps.stamina = math.max(0, ps.stamina - 10) end
+					impact(tr.Position, false)
+				end)
+			end
+		else hum:MoveTo(enemy.home) end
+	end
+end)
+</ProtectedString>
+        </Properties>
+      </Item>
+    </Item>
+  </Item>
+  <Item class="StarterPlayer" referent="RBX10">
+    <Properties>
+      <string name="Name">StarterPlayer</string>
+    </Properties>
+    <Item class="StarterPlayerScripts" referent="RBX11">
+      <Properties>
+        <string name="Name">StarterPlayerScripts</string>
+      </Properties>
+      <Item class="LocalScript" referent="RBX12">
+        <Properties>
+          <string name="Name">BakiClient</string>
+          <ProtectedString name="Source">local Players = game:GetService("Players")
+local RS = game:GetService("ReplicatedStorage")
+local CAS = game:GetService("ContextActionService")
+local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
+local Debris = game:GetService("Debris")
+local player = Players.LocalPlayer
+local Config = require(RS:WaitForChild("Baki"):WaitForChild("Config"))
+local remote = RS.Baki:WaitForChild("Combat")
+local gold, red = Color3.fromRGB(239, 190, 112), Color3.fromRGB(230, 64, 73)
+local gui = Instance.new("ScreenGui")
+gui.Name, gui.ResetOnSpawn, gui.IgnoreGuiInset = "BakiHUD", false, false
+gui.Parent = player:WaitForChild("PlayerGui")
+local function label(parent, text, size, pos, color, font)
+	local t = Instance.new("TextLabel")
+	t.BackgroundTransparency, t.Text, t.Size, t.Position = 1, text, size, pos
+	t.Font, t.TextSize, t.TextColor3 = font or Enum.Font.GothamBold, 14, color or Color3.new(1, 1, 1)
+	t.TextXAlignment, t.Parent = Enum.TextXAlignment.Left, parent
+	return t
+end
+local panel = Instance.new("Frame")
+panel.Size, panel.Position = UDim2.new(0.42, 0, 0, 182), UDim2.new(0, 18, 1, -200)
+panel.BackgroundColor3, panel.BackgroundTransparency, panel.BorderSizePixel = Color3.fromRGB(12, 14, 20), 0.12, 0
+panel.Parent = gui
+local constraint = Instance.new("UISizeConstraint", panel)
+constraint.MaxSize, constraint.MinSize = Vector2.new(410, 182), Vector2.new(205, 182)
+local corner = Instance.new("UICorner", panel)
+corner.CornerRadius = UDim.new(0, 10)
+local stroke = Instance.new("UIStroke", panel)
+stroke.Color, stroke.Transparency = gold, 0.6
+label(panel, "BAKI / UNDERGROUND", UDim2.new(1, -28, 0, 26), UDim2.fromOffset(14, 10), gold).TextSize = 18
+local district = label(panel, "COMBAT DISTRICT", UDim2.new(1, -28, 0, 18), UDim2.fromOffset(14, 37), Color3.fromRGB(148, 157, 176))
+local function bar(name, y, color)
+	local bg = Instance.new("Frame")
+	bg.BackgroundColor3, bg.BorderSizePixel = Color3.fromRGB(38, 41, 51), 0
+	bg.Size, bg.Position, bg.Parent = UDim2.new(1, -28, 0, 9), UDim2.fromOffset(14, y + 20), panel
+	local fill = Instance.new("Frame")
+	fill.BackgroundColor3, fill.BorderSizePixel, fill.Size, fill.Parent = color, 0, UDim2.fromScale(1, 1), bg
+	local txt = label(panel, name, UDim2.new(1, -28, 0, 18), UDim2.fromOffset(14, y), Color3.fromRGB(203, 208, 220))
+	return fill, txt
+end
+local hp, hpText = bar("HEALTH", 60, red)
+local stamina, staminaText = bar("STAMINA", 99, gold)
+local stats = label(panel, "STRENGTH 0  /  KOs 0", UDim2.new(1, -28, 0, 24), UDim2.fromOffset(14, 147), gold)
+local mission = label(gui, "FIRST BLOOD / DEFEAT 3 OPPONENTS / BONUS +100", UDim2.new(0.92, 0, 0, 28), UDim2.new(0.04, 0, 0, 12), gold)
+mission.TextXAlignment, mission.TextScaled = Enum.TextXAlignment.Center, true
+local limit = Instance.new("UITextSizeConstraint", mission)
+limit.MaxTextSize = 16
+local notice = label(gui, "WELCOME / TRAIN. FIGHT. BECOME THE STRONGEST.", UDim2.new(0.92, 0, 0, 30), UDim2.new(0.04, 0, 0, 48), Color3.new(1, 1, 1))
+notice.TextXAlignment, notice.TextScaled = Enum.TextXAlignment.Center, true
+local noticeLimit = Instance.new("UITextSizeConstraint", notice)
+noticeLimit.MaxTextSize = 15
+local hint = label(gui, "LMB / X  PUNCH     F / L2  BLOCK     Q / B  DASH", UDim2.new(0.94, 0, 0, 22), UDim2.new(0.03, 0, 1, -28), Color3.fromRGB(170, 177, 194))
+hint.TextXAlignment, hint.TextScaled = Enum.TextXAlignment.Center, true
+local hintLimit = Instance.new("UITextSizeConstraint", hint)
+hintLimit.MaxTextSize = 13
+
+local holdingAttack = false
+local function action(name, state)
+	if name == "BakiPunch" then
+		if state == Enum.UserInputState.Begin then
+			if not holdingAttack then
+				holdingAttack = true
+				task.spawn(function()
+					while holdingAttack do remote:FireServer("Attack"); task.wait(Config.AttackCooldown + 0.025) end
+				end)
+			end
+		elseif state == Enum.UserInputState.End or state == Enum.UserInputState.Cancel then holdingAttack = false end
+	elseif name == "BakiBlock" then
+		if state == Enum.UserInputState.Begin then remote:FireServer("Block", true)
+		elseif state == Enum.UserInputState.End or state == Enum.UserInputState.Cancel then remote:FireServer("Block", false) end
+	elseif name == "BakiDash" and state == Enum.UserInputState.Begin then remote:FireServer("Dash") end
+	return Enum.ContextActionResult.Sink
+end
+CAS:BindAction("BakiPunch", action, true, Enum.UserInputType.MouseButton1, Enum.KeyCode.ButtonX)
+CAS:BindAction("BakiBlock", action, true, Enum.KeyCode.F, Enum.KeyCode.ButtonL2)
+CAS:BindAction("BakiDash", action, true, Enum.KeyCode.Q, Enum.KeyCode.ButtonB)
+for _, entry in {{"BakiPunch", "PUNCH", UDim2.new(1, -100, 1, -195)}, {"BakiBlock", "BLOCK", UDim2.new(1, -185, 1, -130)}, {"BakiDash", "DASH", UDim2.new(1, -100, 1, -275)}} do
+	CAS:SetTitle(entry[1], entry[2])
+	CAS:SetPosition(entry[1], entry[3])
+end
+
+local function refreshStamina()
+	local value = player:GetAttribute("Stamina") or Config.MaxStamina
+	stamina.Size = UDim2.fromScale(value / Config.MaxStamina, 1)
+	staminaText.Text = (player:GetAttribute("Blocking") and "GUARD" or "STAMINA") .. " / " .. math.floor(value)
+end
+player:GetAttributeChangedSignal("Stamina"):Connect(refreshStamina)
+player:GetAttributeChangedSignal("Blocking"):Connect(refreshStamina)
+local function onCharacter(char)
+	holdingAttack = false
+	local hum = char:WaitForChild("Humanoid")
+	local function health()
+		hp.Size = UDim2.fromScale(math.clamp(hum.Health / hum.MaxHealth, 0, 1), 1)
+		hpText.Text = "HEALTH / " .. math.ceil(hum.Health)
+	end
+	hum.HealthChanged:Connect(health)
+	hum.Died:Connect(function() holdingAttack = false end)
+	health()
+	refreshStamina()
+end
+player.CharacterAdded:Connect(onCharacter)
+if player.Character then task.spawn(onCharacter, player.Character) end
+task.spawn(function()
+	local ls = player:WaitForChild("leaderstats")
+	local strength, kos = ls:WaitForChild("Strength"), ls:WaitForChild("KOs")
+	local function refresh()
+		stats.Text = "STRENGTH " .. strength.Value .. "  /  KOs " .. kos.Value
+		mission.Text = kos.Value &gt;= 3 and "FIRST BLOOD COMPLETE / CHALLENGE THE ARENA CHAMPION" or "FIRST BLOOD / " .. kos.Value .. "/3 OPPONENTS / BONUS +100"
+	end
+	strength.Changed:Connect(refresh)
+	kos.Changed:Connect(refresh)
+	refresh()
+end)
+
+local noticeId = 0
+local activeSwings = setmetatable({}, {__mode = "k"})
+remote.OnClientEvent:Connect(function(event, a, b)
+	if event == "Notice" then
+		noticeId += 1
+		local current = noticeId
+		notice.Text, notice.TextTransparency = a, 0
+		task.delay(5, function() if current == noticeId then TweenService:Create(notice, TweenInfo.new(1), {TextTransparency = 1}):Play() end end)
+	elseif event == "Swing" then
+		if typeof(a) ~= "Instance" or not a.Parent then return end
+		local torso = a:FindFirstChild("UpperTorso") or a:FindFirstChild("Torso")
+		if not torso then return end
+		local shoulder = torso:FindFirstChild(b % 2 == 0 and "Left Shoulder" or "Right Shoulder")
+		if not shoulder then
+			local arm = a:FindFirstChild(b % 2 == 0 and "LeftUpperArm" or "RightUpperArm")
+			shoulder = arm and arm:FindFirstChild(b % 2 == 0 and "LeftShoulder" or "RightShoulder")
+		end
+		if shoulder and shoulder:IsA("Motor6D") and not activeSwings[shoulder] then
+			local original = shoulder.C0
+			activeSwings[shoulder] = true
+			TweenService:Create(shoulder, TweenInfo.new(0.09), {C0 = original * CFrame.Angles(math.rad(-100), 0, math.rad(b % 2 == 0 and -15 or 15))}):Play()
+			task.delay(0.12, function()
+				if shoulder.Parent then TweenService:Create(shoulder, TweenInfo.new(0.16), {C0 = original}):Play() end
+				task.delay(0.17, function() activeSwings[shoulder] = nil end)
+			end)
+		end
+	elseif event == "Impact" then
+		if typeof(a) ~= "Vector3" then return end
+		local p = Instance.new("Part")
+		p.Name, p.Shape, p.Material = "Hit flash", Enum.PartType.Ball, Enum.Material.Neon
+		p.Color, p.Size, p.CFrame = b and red or gold, Vector3.one * 0.5, CFrame.new(a)
+		p.Anchored, p.CanCollide, p.CanQuery, p.CanTouch = true, false, false, false
+		p.Parent = workspace
+		TweenService:Create(p, TweenInfo.new(0.2), {Size = Vector3.one * (b and 6 or 3), Transparency = 1}):Play()
+		Debris:AddItem(p, 0.25)
+		local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+		if hrp and (hrp.Position - a).Magnitude &lt; 10 then
+			local hum = player.Character:FindFirstChildOfClass("Humanoid")
+			if hum then
+				local offset = Vector3.new(b and 0.3 or 0.12, 0, 0)
+				hum.CameraOffset = offset
+				TweenService:Create(hum, TweenInfo.new(0.16), {CameraOffset = Vector3.zero}):Play()
+			end
+		end
+	elseif event == "Dash" then
+		local camera = workspace.CurrentCamera
+		if camera then
+			TweenService:Create(camera, TweenInfo.new(0.09), {FieldOfView = 80}):Play()
+			task.delay(0.18, function() TweenService:Create(camera, TweenInfo.new(0.2), {FieldOfView = 70}):Play() end)
+		end
+	end
+end)
+local elapsed = 0
+RunService.RenderStepped:Connect(function(dt)
+	elapsed += dt
+	if elapsed &lt; 0.3 then return end
+	elapsed = 0
+	local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+	if root then
+		local p = root.Position
+		district.Text = p.Y &lt; -8 and "03 / THE UNDERGROUND" or (p.X &gt; 45 and math.abs(p.Z + 8) &lt; 35 and "02 / IRON WILL DOJO" or (p.X &lt; -20 and p.Z &lt; -12 and "TRAINING PARK" or "01 / COMBAT DISTRICT"))
+	end
+end)
+</ProtectedString>
+        </Properties>
+      </Item>
+    </Item>
+  </Item>
+  <Item class="StarterGui" referent="RBX13">
+    <Properties>
+      <string name="Name">StarterGui</string>
+    </Properties>
+  </Item>
+</roblox>

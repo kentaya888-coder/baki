@@ -1,0 +1,23 @@
+return {
+	Title = "BAKI · UNDERGROUND",
+	Subtitle = "THE STRONGEST ARE MADE HERE",
+	MaxStamina = 100,
+	StaminaRegen = 18,
+	AttackCost = 10,
+	DashCost = 25,
+	AttackCooldown = 0.34,
+	AttackRange = 8,
+	ComboWindow = 1.1,
+	Damage = { 8, 9, 11, 18 },
+	WalkSpeed = 18,
+	BlockSpeed = 8,
+	DashSpeed = 65,
+	DashDuration = 0.16,
+	Spawn = Vector3.new(0, 5, 86),
+	Arena = Vector3.new(0, -23, -100),
+	Enemies = {
+		{ Name = "STREET ROOKIE", Position = Vector3.new(-42, 4, 25), Health = 85, Damage = 7, Reward = 25, Color = Color3.fromRGB(119, 141, 154) },
+		{ Name = "DOJO VETERAN", Position = Vector3.new(75, 4, -8), Health = 150, Damage = 11, Reward = 55, Color = Color3.fromRGB(186, 157, 105) },
+		{ Name = "ARENA CHAMPION", Position = Vector3.new(0, -22, -100), Health = 350, Damage = 17, Reward = 150, Color = Color3.fromRGB(196, 62, 54) },
+	},
+}
